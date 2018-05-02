@@ -98,3 +98,9 @@ typedef char Boolean;
 #endif
 
 #endif
+
+#define CALL(_p) \
+    int _rc; \
+    if ((_rc = (_p)) != OK_RC) { \
+        return _rc; \
+    }

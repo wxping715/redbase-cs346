@@ -21,6 +21,10 @@
 #include "redbase.h"
 #include "rm_rid.h"
 #include "pf.h"
+#include <cstdio>
+#include <cstring>
+
+#define INVALID_SLOT 0
 
 //
 // RM_Record: RM Record interface
@@ -28,6 +32,7 @@
 class RM_Record {
 public:
     RM_Record ();
+    RM_Record (char* pData, RID &rid);
     ~RM_Record();
 
     // Return the data corresponding to the record.  Sets *pData to the
@@ -36,7 +41,20 @@ public:
 
     // Return the RID associated with the record
     RC GetRid (RID &rid) const;
+
+    // set the record data
+    RC SetData(const char *pData, size_t size);
+
+    // set the rid
+    RC SetRid(const RID &rid);
+
+private:
+    char* pData;
+    RID rid;
 };
+
+// a flag whether opened by rm manager
+#define INVALID_OPEN_STATUS false
 
 //
 // RM_FileHandle: RM File interface
@@ -57,6 +75,24 @@ public:
     // Forces a page (along with any contents stored in this class)
     // from the buffer pool to disk.  Default value forces all pages.
     RC ForcePages (PageNum pageNum = ALL_PAGES);
+
+private:
+    PF_FileHandle &pfFileHandle;
+
+    size_t recordSize; // the fixed size of a record
+    size_t recordsPerPage; // the number of records per pages
+    size_t recordCount; // total records
+    size_t pageHdrSize; // the size of page header
+    
+    bool openStatus; // the status of file to decalre if opened
+
+    RC FindRec(
+        const RID& rid, // The given rid
+        PageNum &pageNum, // the pageNum in rid
+        SlotNum& slot, // the slotNum in rid
+        PF_PageHandle &pfPageHandle, // the pageHandle of the page with rec
+        char *& data // the data in the pageHandle
+    ) const;
 };
 
 //
@@ -91,11 +127,18 @@ public:
     RC OpenFile   (const char *fileName, RM_FileHandle &fileHandle);
 
     RC CloseFile  (RM_FileHandle &fileHandle);
+private:
+    PF_Manager pfManager;
 };
 
 //
 // Print-error function
 //
 void RM_PrintError(RC rc);
+
+#define RM_FILENOTOPEND     (START_RM_WARN + 0) // the file handle doesn't refer a file
+#define RM_INVALIDRID      (START_RM_WARN + 1) // invalid rid
+
+#define PF_PAGEPINNED      (START_RM_ERR + 0) // page pinned in buffer
 
 #endif
